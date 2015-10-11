@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "headers/utilities.h"
+#include "utilities.c"
 
 typedef struct digit {
   int value;
@@ -125,7 +125,7 @@ num* opposite(num* number){
     num* opp = makeNumber();
     opp->positif = !(number->positif);
     for(digit *i = number->first; i != NULL; i = i->next){
-	addDigitRight(opp, i->value);
+	addDigitRight(opp, (i->value));
     }
     return opp;
 }
@@ -239,21 +239,28 @@ num* sub(num* a, num* b){
 	return a;
     }
     else if ((a->positif) && !(b->positif)){
-	num* opp = opposite(b);
-	difference = add(a,opp);
-	free(opp);
+	num* oppb = opposite(b);
+	difference = add(a,oppb);
+	free(oppb);
     }
     else if (!(a->positif) && (b->positif)){
-	num* opp = opposite(b);
-	difference = add(a,opp);
-	free(opp);
+	num* oppa = opposite(a);
+	printf("-a = ");
+	printNumber(oppa);
+	putchar('\n');
+	printf("a[0] = ");
+	printf("%d", oppa->first->value);
+	putchar('\n');	
+	difference = add(oppa,b);
+	difference->positif = false;
+	free(oppa);
     }
     else if (!(a->positif) && !(b->positif)){
-	num* opp1 = opposite(b);
-	num* opp2 = opposite(a);
-	difference = sub(opp1, opp2);
-	free(opp1);
-	free(opp2);
+	num* oppb = opposite(b);
+	num* oppa = opposite(a);
+	difference = sub(oppa, oppb);
+	free(oppa);
+	free(oppb);
     }
     else {
 	if(gt(b,a)){
@@ -283,6 +290,10 @@ num* sub(num* a, num* b){
 	    compress(difference);
 	}
     }
+    printf("difference[0] = ");
+    printf("%d", difference->first->value);
+    putchar('\n');	
+    
     return difference;	
 }
 
@@ -360,11 +371,6 @@ num* stringToNum(char *a){
 
 int main(){
     
-    num* x = stringToNum("-000000000010000012346789934567890");
-    printf("x: ");
-    printNumber(x);
-    putchar('\n');
-
     num* a = stringToNum("-25");
     num* b = stringToNum("10");
     num* product = longMul(a,b);
@@ -386,6 +392,7 @@ int main(){
     printf("a + b: ");    
     printNumber(add(a,b));
     putchar('\n');
+    putchar('\n');    
 
     printf("a: ");
     printNumber(a);
@@ -393,7 +400,7 @@ int main(){
     printf("b: ");    
     printNumber(b);
     putchar('\n');
-
+    putchar('\n');
     
     printf("a - b: ");    
     printNumber(sub(a,b));
@@ -402,6 +409,7 @@ int main(){
     printf("a * b: ");
     printNumber(product);
     putchar('\n');
+    putchar('\n');    
     printf("a > b: %d\n", gt(a,b));
 
 
