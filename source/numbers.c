@@ -1,131 +1,186 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "utilities.c"
+
+#define true 1
+#define false 0
 
 typedef struct digit {
   int value;
-  struct digit *pred;
-  struct digit *next;
+  struct digit *gch;
+  struct digit *drt;
 } digit;
 
 typedef struct num {
-  boolean positif;
+  int positif;
   digit *first;
   digit *last;
   int refs;
   int length;
 } num;
 
-boolean isPositive(num *number){
-    return number->positif;
+int isPositive(num *number){
+    return number && number->positif;
 }
 
-boolean isZero(num *number){
-    return (number->first->value == 0);
+int isZero(num *number){
+    return (number->first->drt == NULL) && (number->first->value == 0);
 }
 
 void compress(num* number){
-    digit *dig = number->first;
-    while((dig->next) != NULL && (dig->value) == 0){
-	number->first = dig->next;
-	dig = dig->next;
+    if(number != NULL){
+	digit *dig = number->first;
+	while((dig->drt) != NULL && (dig->value) == 0){
+	    number->first = dig->drt;
+	    dig = dig->drt;
+	    free(dig->gch);
+	}
     }
 }
 
-digit* makeDigit(int dig, digit *pred, digit *next){
+digit* makeDigit(int dig, digit *gch, digit *drt){
     digit *new_digit = malloc(sizeof(digit));
-    new_digit->value = dig;
-    new_digit->pred = (digit *) pred;
-    new_digit->next = (digit *) next;
+    if(new_digit != NULL){
+	new_digit->value = dig;
+	new_digit->gch = (digit *) gch;
+	new_digit->drt = (digit *) drt;
+    }
     return new_digit;
 }
 
 num* makeNumber(){
     num *number = malloc(sizeof(num));
-    number->positif = true;
-    number->refs = 0;
-    number->length = 0;
+    if(number != NULL){
+	number->positif = true;
+	number->refs = 0;
+	number->length = 0;
+	number->first = NULL;
+	number->last = NULL;
+    }
     return number;
 }
 
-void destroyNumber(num *number){
-    free(number);
-}
-
-void destroyDigits(num *number){
-    digit *dig = number->first->next;
-    while(dig != NULL){
-	free(dig->pred);
-	dig = dig->next;
+char destroyDigits(num *number){
+    if(number != NULL){
+	digit *current = number->first;
+	digit *temp = current;
+	while(current != NULL){
+	    current = current->drt;
+	    free(temp);
+	    temp = current;
+	}
     }
+    return '\0';
 }
 
-void addDigitRight(num *number, int dig){
+char destroyNumber(num *number){
+    if(number != NULL){
+	destroyDigits(number);
+	free(number);
+    }
+    return '\0';
+}
+
+char addDigitRight(num *number, int dig){
+    if(number == NULL)
+	return 'n';//Code d'erreur: problème de construction du nombre
     if(number->first == NULL){
-	number->first = number->last = makeDigit(dig,NULL,NULL);
+	if((number->first = number->last = makeDigit(dig,NULL,NULL)) == NULL)
+	    return 'm';
 	number->length++;
     }
-    else if (number->first->value == 0 && number->first->next == NULL){
+    else if (number->first->value == 0 && number->first->drt){
 	number->first->value = dig;
     }
     else{
-	number->last->next = makeDigit(dig, number->last, NULL);
-	number->last = number->last->next;
+	if((number->last->drt = makeDigit(dig, number->last, NULL)) == NULL)
+	    return 'm';
+	number->last = number->last->drt;
 	number->length++;
     }
+    return '\0';
 }
 
-void addDigitLeft(num *number, int dig){
+char addDigitLeft(num *number, int dig){
+    if(number == NULL)
+	return 'n';
     if(dig != 0){
 	if(number->first == NULL){
-	    number->first = number->last = makeDigit(dig,NULL,NULL);
+	    if((number->first = number->last = makeDigit(dig,NULL,NULL)) == NULL)
+		return 'm';
 	}
 	else{
-	    number->first->pred = makeDigit(dig, NULL, number->first);
-	    number->first = number->first->pred;
+	    if((number->first->gch = makeDigit(dig, NULL, number->first)) == NULL)
+		return 'm';
+	    number->first = number->first->gch;
 	}
 	number->length++;
     }
+    return '\0';
 }
 
-void addZeroLeft(num *number){
+char addZeroLeft(num *number){
+    if(number == NULL)
+	return 'n';
     if(number->first == NULL){
-	number->first = number->last = makeDigit(0,NULL,NULL);
+	if ((number->first = number->last = makeDigit(0,NULL,NULL)) == NULL)
+	    return 'm';
     }
     else{
-	number->first->pred = makeDigit(0, NULL, number->first);
-	number->first = number->first->pred;
+	if((number->first->gch = makeDigit(0, NULL, number->first)) == NULL)
+	    return 'm';
+	number->first = number->first->gch;
     }
     number->length++;
+    return '\0';
 }
 
-void addZeroRight(num *number){
+char addZeroRight(num *number){
+    if(number == NULL)
+	return 'n';
     if(number->first == NULL){
-	number->first = number->last = makeDigit(0,NULL,NULL);
+	if((number->first = number->last = makeDigit(0,NULL,NULL)) == NULL)
+	    return 'm';
     }
     else{
-	number->last->next = makeDigit(0, number->last, NULL);
-	number->last = number->last->next;
+	if((number->last->drt = makeDigit(0, number->last, NULL)) == NULL)
+	    return 'm';
+	number->last = number->last->drt;
     }
     number->length++;
-    
+    return '\0';
 }
 
 num* copyNumber(num* number){
+    if(number == NULL)
+	return NULL;
     num* copy = makeNumber();
-    copy->positif = number->positif;
-    for(digit *i = number->first; i != NULL; i = i->next){
-	addDigitRight(copy, i->value);
+    if(copy != NULL){
+	copy->positif = number->positif;
+	digit *i;
+	for(i = number->first; i != NULL; i = i->drt){
+	    if(addDigitRight(copy, i->value) != '\0'){
+		copy = NULL;
+		break;
+	    }
+	}
     }
     return copy;
 }
 
 num* opposite(num* number){
+    if(number == NULL)
+	return NULL;
     num* opp = makeNumber();
-    opp->positif = !(number->positif);
-    for(digit *i = number->first; i != NULL; i = i->next){
-	addDigitRight(opp, (i->value));
+    if(opp != NULL){
+	opp->positif = !(number->positif);
+	digit *i;
+	for(i = number->first; i != NULL; i = i->drt){
+	    if(addDigitRight(opp, (i->value)) != '\0'){
+		opp = NULL;
+		break;
+	    }
+	}
     }
     return opp;
 }
@@ -144,19 +199,19 @@ void printNumber(num *number){
     }
     while(dig != NULL){
 	printf("%d",dig->value);
-	dig = dig->next;
+	dig = dig->drt;
     }
 }
 
-
-boolean gt(num* a, num* b){
+int gt(num* a, num* b){
     if((a->length) > (b->length)){
 	return true;
     }
     else if((a->length) == (b->length)){
-	boolean stop = false;
-	boolean greater = false;
-	for(digit *i = (a->first), *j = (b->first); i != NULL && j != NULL && !stop; i = i->next, j = j->next){
+	int stop = false;
+	int greater = false;
+	digit *i, *j;
+	for(i = (a->first), j = (b->first); i != NULL && j != NULL && !stop; i = i->drt, j = j->drt){
 	    greater = (i->value) > (j->value);
 	    stop = greater || (i->value) < (j->value);
 	}
@@ -174,9 +229,11 @@ num* add(num* a, num* b){
     printf(" + ");
     printNumber(b);
     putchar('\n');
+    if (a == NULL || b == NULL)
+	return NULL;
     
     num* sum;
-    if(isZero(a)){
+    if (isZero(a)){
 	return b;
     }
     else if(isZero(b)){
@@ -185,42 +242,56 @@ num* add(num* a, num* b){
     else if ((a->positif) && !(b->positif)){
 	num* opp = opposite(b);
 	sum = sub(a,opp);
-	free(opp);
+	destroyNumber(opp);
     }
     else if (!(a->positif) && (b->positif)){
 	num* opp = opposite(a);
-	printf("-a = ");
-	printNumber(opp);
-	putchar('\n');
 	sum = sub(b,opp);
-	free(opp);
+	destroyNumber(opp);
     }
     else {
 	if (a->length < b->length){
 	    return add(b,a);
 	} else {
 	    sum = makeNumber();
+	    if(sum == NULL)
+		return sum;
 	    int carry = 0;
 	    int val1;
 	    int val2;
 	    int s;
-	    for(digit *i = a->last, *j = b->last; i != NULL; i = i->pred, j = (j != NULL)?(j->pred):j){
+	    digit *i, *j;
+	    for(i = a->last, j = b->last; i != NULL; i = i->gch, j = (j != NULL)?(j->gch):j){
 		val1 = i->value;
 		val2 = (j != NULL)?(j->value):0;
 		s = val1 + val2 + carry;
+		carry = s / 10;
+		s %= 10;
 		if(s != 0){
-		    addDigitLeft(sum, s % 10);
+		    if(addDigitLeft(sum, s) != '\0'){
+			sum == NULL;
+			break;
+		    }
 		}
 		else {
-		    addZeroLeft(sum);
+		    if(addZeroLeft(sum) != '\0'){
+			sum == NULL;
+			break;
+		    }
 		}
-		carry = s / 10;
+		
 	    }
-	    compress(sum);
-	    sum->positif = a->positif && b->positif;
+	    if(sum != NULL){
+		if (carry != 0)
+		    if(addDigitLeft(sum, carry) != '\0')
+			sum = NULL;
+		if(sum != NULL){
+		    compress(sum);
+		    sum->positif = (a->positif) && (b->positif);
+		}
+	    }
 	}
     }
-    
     return sum;
 }
 
@@ -231,7 +302,8 @@ num* sub(num* a, num* b){
     putchar('\n');
 
     num* difference;
-    
+    if(a == NULL || b == NULL)
+	return NULL;
     if(isZero(a)){
 	return opposite(b);
     }
@@ -241,26 +313,21 @@ num* sub(num* a, num* b){
     else if ((a->positif) && !(b->positif)){
 	num* oppb = opposite(b);
 	difference = add(a,oppb);
-	free(oppb);
+	oppb && destroyNumber(oppb);
     }
     else if (!(a->positif) && (b->positif)){
 	num* oppa = opposite(a);
-	printf("-a = ");
-	printNumber(oppa);
-	putchar('\n');
-	printf("a[0] = ");
-	printf("%d", oppa->first->value);
-	putchar('\n');	
 	difference = add(oppa,b);
-	difference->positif = false;
-	free(oppa);
+	if(difference != NULL)
+	    difference->positif = false;
+	destroyNumber(oppa);
     }
     else if (!(a->positif) && !(b->positif)){
 	num* oppb = opposite(b);
 	num* oppa = opposite(a);
 	difference = sub(oppa, oppb);
-	free(oppa);
-	free(oppb);
+	destroyNumber(oppa);
+	destroyNumber(oppb);
     }
     else {
 	if(gt(b,a)){
@@ -269,29 +336,39 @@ num* sub(num* a, num* b){
 	}
 	else{
 	    difference = makeNumber();
+	    if(difference == NULL)
+		return NULL;
 	    int carry = 0;
 	    int val1;
 	    int val2;
-	    for(digit *i = a->last, *j = b->last; i != NULL; i = i->pred, j = (j != NULL)?(j->pred):j){
+	    digit *i, *j;
+	    for(i = a->last, j = b->last; i != NULL; i = i->gch, j = (j != NULL)?(j->gch):j){
 		val1 = i->value;
 		val2 = (j != NULL)?(j->value):0;
 		val2 += carry;
 		if(val1 > val2){
-		    addDigitLeft(difference, val1 - val2);
+		    if(addDigitLeft(difference, val1 - val2) != '\0'){
+			difference = NULL;
+			break;
+		    }
 		}
 		else if(val1 == val2){
-		    addZeroLeft(difference);
+		    if(addZeroLeft(difference) != '\0'){
+			difference = NULL;
+			break;
+		    }
 		}
 		else {
-		    addDigitLeft(difference, ((val1 + 10) - val2));
+		    if(addDigitLeft(difference, ((val1 + 10) - val2)) != '\0'){
+		       difference = NULL;
+		       break;
+		    }
 		}
 		carry = (val1 < val2);
 	    }
 	    compress(difference);
 	}
     }
-    printf("difference[0] = ");
-    printf("%d", difference->first->value);
     putchar('\n');	
     
     return difference;	
@@ -304,6 +381,9 @@ Implémentation de l'algorithme de la "long multiplication" pour des 'num'.
 [out] num* : le résultat du produit de a et b. 
 */
 num* longMul(num* a, num* b){
+    if(a == NULL || b == NULL)
+	return NULL;
+    
     if(isZero(a)){
 	return a;
     }
@@ -312,23 +392,30 @@ num* longMul(num* a, num* b){
     }
     else {
 	num *product = makeNumber();
-	for(int i = 0; i < (a->length + b->length -1); i++){
-	    addZeroLeft(product);
+	if(product == NULL)
+	    return NULL;
+	
+	int z;
+	for(z = 0; z < a->length + b->length; z++){
+	    if(addZeroLeft(product) != '\0')
+		return NULL;
 	}
+	
+	//printf("initial product:");
+	//printNumber(product);
+	//putchar('\n');
 	int carry;
-	digit *k = product->last;
-	for(digit *i = b->last; i != NULL; i = i->pred){
-	    carry = 0;
-	    digit *current = k;
-	    for(digit *j = a->last; j != NULL; j = j->pred){
+	digit *i, *j, *k, *current;
+	for(i = b->last, k = product->last; i != NULL; i = i->gch, k = k->gch){
+	    for(j = a->last, carry = 0, current = k; j != NULL; j = j->gch, current = current->gch){
 		//compute stuff
-		current->value += carry + (i->value) * (j->value);
-		carry = current->value / 10;
-		current->value = current->value % 10;
-		current = current->pred;
+		current->value += carry + ((i->value) * (j->value));
+		carry = (current->value) / 10;
+		current->value %= 10;
 	    }
-	    k = k->pred;
+	    current->value += carry;
 	}
+	compress(product);
 	product->positif = a->positif == b->positif;
 	return product;
     }
@@ -342,10 +429,17 @@ Cette fonction génère un num à partir d'un int.
  */
 num* intToNum(int a){
     num *number = makeNumber();
+    int d;
     number->positif = (a >= 0);//signe
     a = (a >= 0)? a: -a;//Valeur absolue
     while(a != 0){
-	addDigitLeft(number,a % 10);
+	d = a % 10;
+	if(d == 0){
+	    addZeroLeft(number);
+	}
+	else {
+	    addDigitLeft(number, d);
+	}
 	a /= 10;
     }
     return number;
@@ -358,21 +452,23 @@ Le premier charactère peut optionellement être le symbole '-', auquel cas le n
 Tout autre charactère dans le string causera un erreur.
 [out] num* : un pointeur vers le num généré.
  */
-num* stringToNum(char *a){
+num* stringToNum(char *s){
     num *number = makeNumber();
-    if(a[0] == '-'){
+    if(s[0] == '-'){
 	number->positif = false;
     }
-    for(int i = !(number->positif); i < strlen(a); i++){
-	addDigitRight(number, a[i] - '0');
+    int i;
+    for(i = !(number->positif); i < strlen(s); i++){
+	addDigitRight(number, (int) s[i] - '0');
     }
     return number;
 }
 
+
 int main(){
-    
-    num* a = stringToNum("-25");
-    num* b = stringToNum("10");
+    num* a = stringToNum("15241578750190521");
+    num* b = stringToNum("15241578750190521");
+    num* sum = add(a,b);
     num* product = longMul(a,b);
 
     printf("a: ");
@@ -381,27 +477,19 @@ int main(){
     printf("b: ");    
     printNumber(b);
     putchar('\n');
+
     
-    printf("-a: ");
-    printNumber(opposite(a));
-    putchar('\n');
-    printf("-b: ");    
-    printNumber(opposite(b));
-    putchar('\n');
+//    printf("-a: ");
+//    printNumber(opposite(a));
+//   putchar('\n');
+//    printf("-b: ");    
+//    printNumber(opposite(b));
+//    putchar('\n');
 
     printf("a + b: ");    
-    printNumber(add(a,b));
+    printNumber(sum);
     putchar('\n');
-    putchar('\n');    
 
-    printf("a: ");
-    printNumber(a);
-    putchar('\n');
-    printf("b: ");    
-    printNumber(b);
-    putchar('\n');
-    putchar('\n');
-    
     printf("a - b: ");    
     printNumber(sub(a,b));
     putchar('\n');
@@ -409,9 +497,35 @@ int main(){
     printf("a * b: ");
     printNumber(product);
     putchar('\n');
+/*
+//    putchar('\n');    
+
+    destroyNumber(sum);
+    destroyNumber(a);
+    destroyNumber(b);    
+
+    printf("sum, a et b détruits");
+    
+    num* c = stringToNum("2520");
+    num* d = stringToNum("-125");
+
+    printf("c: ");
+    printNumber(c);
+    putchar('\n');
+    printf("d: ");    
+    printNumber(d);
+    putchar('\n');
+    putchar('\n');
+
+    sum = add(c,d);
+    printf("c + d: ");
+    printNumber(sum);
+    putchar('\n');
+*/    
+
     putchar('\n');    
     printf("a > b: %d\n", gt(a,b));
 
-
     return 0;
 }
+
